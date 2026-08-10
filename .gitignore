@@ -1,0 +1,22 @@
+.env
+data/
+
+# Les résultats bruts d'un run de banc d'essai sont volumineux et
+# regénérables. Les résumés lisibles, eux, sont la preuve des chiffres
+# annoncés dans le README : un projet dont l'argument est « mesuré, pas
+# annoncé » doit publier de quoi vérifier.
+benchmarks/results/*
+!benchmarks/results/*.md
+
+__pycache__/
+.coverage
+.coverage.*
+htmlcov/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store

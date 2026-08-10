@@ -109,8 +109,18 @@ every system prompt. Measured over the four tasks under identical ceilings:
 
 Split by task, the two simple ones improved and the two hard ones blew up —
 plausibly because the extra context pushes a 65k-window model into re-reading.
-The feature is kept but **off by default** (`REPO_MAP_ENABLED=false`): shipping
-it on would mean claiming an improvement the measurement does not support.
+
+**Read those totals with the caveat they deserve.** They are one run per task,
+and this harness's own rule is that a difference is real only when the observed
+ranges do not overlap. With no repetitions there are no ranges, and
+`--compare` says so itself — every row comes back `unrepeated`, the verdict
+`indistinguishable`. So the honest reading is not "the map costs 58% more
+tokens"; it is **"there is no evidence the map helps"**.
+
+That is still enough to decide. The feature is kept but **off by default**
+(`REPO_MAP_ENABLED=false`), because without evidence that a change helps, the
+default that changes nothing is the one to ship. Re-measuring it under
+`--repeat 3` and greedy decoding would settle it properly.
 
 That is what this harness is for. Without it the change would have shipped,
 because the reasoning behind it was sound.

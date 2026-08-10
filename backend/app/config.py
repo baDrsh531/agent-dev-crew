@@ -94,14 +94,16 @@ class Settings(BaseSettings):
     model_qa: str = "claude-sonnet-5"
     model_documenter: str = "claude-haiku-4-5"
 
-    # Off by default because it measured *worse*, not better. Injecting a
-    # static map of the repository into every system prompt was expected to
-    # save the exploration tool calls the benchmark had shown agents spending.
-    # Measured over the four benchmark tasks it cost +33% tool calls and +58%
-    # tokens for the same number of passes: the two simple tasks improved, the
-    # two hard ones blew up — plausibly because the extra context pushes a
-    # 65k-window model into re-reading. Kept because the idea may still be
-    # right with a smaller map or only for some roles, but not shipped on.
+    # Off by default because nothing showed it helps. Injecting a static map of
+    # the repository into every system prompt was expected to save the
+    # exploration tool calls the benchmark had shown agents spending. Summed
+    # over the four tasks it came out worse — 240 tool calls against 181,
+    # 2.36M tokens against 1.49M, same number of passes — but that was one run
+    # per task, and `--compare` classes every row `unrepeated`: with no
+    # repetitions there are no ranges to fail to overlap. So the claim is not
+    # "the map costs more", it is "there is no evidence it helps", which is
+    # still enough to keep the default at the setting that changes nothing.
+    # Worth re-measuring under `--repeat 3` and greedy decoding.
     repo_map_enabled: bool = False
 
     # Intake turns a non-developer's problem statement into a precise request

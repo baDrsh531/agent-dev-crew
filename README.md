@@ -84,11 +84,16 @@ acceptance tests the crew never sees, plus a `--validate` mode that proves the
 tasks themselves are neither trivial nor unfair. See
 [`benchmarks/`](benchmarks/README.md).
 
-It has already earned its cost: a plausible optimisation — injecting a static
-map of the repository into every prompt to save exploration tool calls —
-measured **+33% tool calls and +58% tokens for no extra passes**, and now ships
-disabled. Without the harness it would have shipped on, because the reasoning
-behind it was sound.
+It has already earned its cost, and in a more interesting way than a slogan.
+A plausible optimisation — injecting a static map of the repository into every
+prompt to save exploration tool calls — summed **worse** over the four tasks:
+240 tool calls against 181, 2.36M tokens against 1.49M, for the same number of
+passes. But that was one run per task, and the harness's own rule is that a
+difference is real only when the observed ranges do not overlap; with no
+repetitions `--compare` reports every row as `unrepeated`. So the finding is
+not "the map costs 58% more" — it is **"there is no evidence the map helps"**,
+which is still enough to ship it disabled. Without the harness it would have
+shipped on, because the reasoning behind it was sound.
 
 **11. The user talks in their own words.** A run starts with intake: an agent
 restates the request in plain language, proposes what it will do, and asks at

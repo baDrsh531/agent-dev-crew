@@ -94,6 +94,21 @@ test checks that an over-large limit is capped rather than rejected, the request
 must say so — otherwise the benchmark measures guessing, not capability. Then
 run `--validate` before trusting a single number.
 
+## A caveat on the results committed here
+
+Every measurement taken with `--repeat` greater than one, before the fix in
+`Un run travaille dans SON dépôt, sur SA branche`, ran with colliding branch
+names: the readable part of a branch is the run id prefix plus a slug of the
+request, which is identical for every repetition of one task. The second and
+third repetitions failed to create their branch, the return code was never
+read, and they carried on inside the first one's.
+
+Tokens and tool calls are unlikely to have moved much — the agents work in the
+filesystem, not in git — but the run's diff, and therefore the change-size
+check handed to QA, was wrong for those repetitions. The figures in
+`GREEDY-2x.md` and the documenter comparison should be read with that in mind,
+and re-measured before anything is concluded from them.
+
 ## What it has actually caught
 
 **A plausible optimisation that made things worse.** The benchmark showed agents

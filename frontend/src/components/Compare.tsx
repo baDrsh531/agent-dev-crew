@@ -119,6 +119,11 @@ export function Compare({
   useEffect(() => {
     let alive = true;
     const load = async (id: string | null, side: "left" | "right") => {
+      // Clear the file count before loading, not after. Left to go stale, the
+      // "files touched" row showed the previous run's number beside the new
+      // run's every other metric — one wrong figure in a table whose only job
+      // is comparing figures.
+      setFiles((f) => ({ ...f, [side]: null }));
       if (!id) {
         (side === "left" ? setLeft : setRight)(null);
         return;

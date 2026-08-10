@@ -45,13 +45,17 @@ export function CostTable({
     return <p className="empty">Aucun agent n'a encore terminé son tour.</p>;
   }
 
+  // Every footer figure comes from here. The turn count used to be summed
+  // again inline in the markup — harmless today, and exactly how the three
+  // divergences found elsewhere in this app started.
   const total = rows.reduce(
     (acc, r) => ({
+      calls: acc.calls + r.calls,
       tokens: acc.tokens + r.tokens,
       cost: acc.cost + r.cost,
       toolCalls: acc.toolCalls + r.toolCalls,
     }),
-    { tokens: 0, cost: 0, toolCalls: 0 },
+    { calls: 0, tokens: 0, cost: 0, toolCalls: 0 },
   );
 
   return (
@@ -81,7 +85,7 @@ export function CostTable({
           <tfoot>
             <tr>
               <td>Total</td>
-              <td className="num">{rows.reduce((n, r) => n + r.calls, 0)}</td>
+              <td className="num">{total.calls}</td>
               <td className="num">{total.toolCalls}</td>
               <td className="num">{total.tokens.toLocaleString("fr-FR")}</td>
               <td className="num">${total.cost.toFixed(4)}</td>

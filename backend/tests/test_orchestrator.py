@@ -235,3 +235,69 @@ async def test_subscribers_receive_the_live_stream(settings, db, broker, sandbox
     while not queue.empty():
         received.append(queue.get_nowait())
     assert any(e["type"] == EventType.RUN_FINISHED.value for e in received)
+
+
+# -- a run never borrows someone else's repository ---------------------------
+
+
+def git(cwd, *args) -> str:
+    import subprocess
+    return subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+        cwd=cwd, capture_output=True, text=True, check=False,
+    ).stdout.strip()
+
+
+async def test_a_workspace_nested_in_another_repo_makes_its_own(
+    tmp_path, settings, db, broker
+) -> None:
+    """This is the incident, written down. Publishing the project turned its
+    directory into a repository; the workspace lived inside it, and `git`
+    answers about the nearest repo *up the tree* — so the crew branched and
+    committed in the project's own history instead of provisioning its own."""
+    from app.orchestrator.engine import RunEngine
+    from app.workspace.sandbox import Sandbox
+
+    outer = tmp_path / "outer"
+    nested = outer / "data" / "workspace"
+    nested.mkdir(parents=True)
+    (nested / "app.py").write_text("x = 1\n", encoding="utf-8")
+    git(outer, "init")
+    git(outer, "commit", "-m", "the project's own history", "--allow-empty")
+    before = git(outer, "rev-parse", "HEAD")
+
+    db.create_run("r1", "Add a thing")
+    engine = RunEngine(
+        "r1", "Add a thing",
+        settings=settings.model_copy(update={"workspace_root": nested}),
+        sandbox=Sandbox(nested), db=db, broker=broker,
+    )
+    engine._prepare_workspace()
+
+    assert git(nested, "rev-parse", "--show-toplevel").endswith("workspace")
+    assert git(outer, "rev-parse", "HEAD") == before, "the outer repo is untouched"
+    assert git(outer, "branch", "--list", "agent/*") == "", "and gained no branch"
+
+
+async def test_two_runs_of_the_same_request_get_different_branches(
+    settings, db, broker, sandbox
+) -> None:
+    """The readable branch name is the run id prefix plus a slug of the
+    request — identical for every repetition of one benchmark task. They used
+    to collide, the failure was never read, and the database recorded a branch
+    the run was not on."""
+    from app.orchestrator.engine import RunEngine
+
+    branches = []
+    for run_id in ("bench-jw-aaaaaa", "bench-jw-bbbbbb"):
+        db.create_run(run_id, "Add JWT authentication")
+        engine = RunEngine(run_id, "Add JWT authentication",
+                           settings=settings, sandbox=sandbox, db=db, broker=broker)
+        engine._prepare_workspace()
+        branches.append(engine.branch)
+
+    assert branches[0] != branches[1]
+    # And what the database says must be what git actually did.
+    for run_id, branch in zip(("bench-jw-aaaaaa", "bench-jw-bbbbbb"), branches):
+        assert db.get_run(run_id)["branch"] == branch
+        assert branch in git(sandbox.root, "branch", "--list", branch)

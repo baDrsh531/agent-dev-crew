@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { compactNumber, durationLabel, phaseLabel, statusLabel, statusTone } from "../labels";
-import { summarise } from "../stats";
+import { durationSeconds, summarise } from "../stats";
 import type { AppConfig, Run } from "../types";
 import { BarChart, BreakdownBar, LineChart } from "./charts";
 
@@ -246,11 +246,12 @@ export function Home({
                       </span>
                     </td>
                     <td className="num">{run.tokens_used ? compactNumber(run.tokens_used) : "—"}</td>
-                    <td className="num">
-                      {durationLabel(
-                        (new Date(run.updated_at).getTime() - new Date(run.created_at).getTime()) / 1000,
-                      )}
-                    </td>
+                    {/* Through `durationSeconds`, not inline: the chart above
+                        already uses it, and a second implementation of the same
+                        subtraction is a second set of edge cases. This one
+                        lacked its guards, so an unparsable date rendered as
+                        NaN here and as "—" three inches higher. */}
+                    <td className="num">{durationLabel(durationSeconds(run))}</td>
                     <td className="num">${run.cost_usd.toFixed(4)}</td>
                   </tr>
                 ))}

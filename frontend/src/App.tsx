@@ -65,6 +65,9 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const timelineEnd = useRef<HTMLDivElement>(null);
   const notifier = useNotifier();
+  // Destructured because the object itself is new on every render;
+  // `notify` is deliberately stable and is what the stream depends on.
+  const { notify } = notifier;
   const { templates, saved, save: saveTemplate, remove: removeTemplate } = useTemplates();
 
   const [request, setRequest] = useState("");
@@ -148,7 +151,7 @@ export default function App() {
           if (event.type === "approval.requested") {
             // The whole point of "ask me about everything" is that someone
             // answers; a gate nobody sees is a run stuck forever.
-            notifier.notify(
+            notify(
               "waiting",
               "Une validation est attendue",
               String(event.payload.summary ?? event.payload.tool ?? ""),
@@ -175,7 +178,7 @@ export default function App() {
           if (event.type === "run.finished") {
             next.live = false;
             next.run = { ...next.run, status: event.payload.status };
-            notifier.notify(
+            notify(
               "finished",
               `Run ${statusLabel(event.payload.status)}`,
               current.run.title || current.run.request,
@@ -191,7 +194,7 @@ export default function App() {
       cancelled = true;
       stop?.();
     };
-  }, [activeId, refreshRuns, notifier]);
+  }, [activeId, refreshRuns, notify]);
 
   useEffect(() => {
     if (tab !== "timeline") return;

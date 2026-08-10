@@ -89,23 +89,31 @@ export function useNotifier(): Notifier {
     Notification.requestPermission().then(setPermission);
   }, []);
 
-  const notify = useCallback(
-    (urgency: Urgency, title: string, body: string) => {
-      if (focused.current) return;
-      setPending((n) => n + 1);
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        try {
-          // Tagged per urgency so a run that stops twice replaces its own
-          // notification instead of stacking two of them.
-          new Notification(title, { body, tag: `adc-${urgency}` });
-        } catch {
-          /* some browsers refuse outside a service worker; the badge remains */
-        }
+  // `notify` must keep the same identity for the life of the component. The
+  // SSE subscription depends on it, and a callback that changed whenever
+  // `soundOn` did — or whenever anything else here re-rendered — tore the
+  // event stream down and reopened it on *every* event. Nothing broke, because
+  // the stream backfills from its sequence number, which is exactly why it
+  // went unnoticed: a reconnect per event, all of them invisible.
+  const sound = useRef(soundOn);
+  useEffect(() => {
+    sound.current = soundOn;
+  }, [soundOn]);
+
+  const notify = useCallback((urgency: Urgency, title: string, body: string) => {
+    if (focused.current) return;
+    setPending((n) => n + 1);
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try {
+        // Tagged per urgency so a run that stops twice replaces its own
+        // notification instead of stacking two of them.
+        new Notification(title, { body, tag: `adc-${urgency}` });
+      } catch {
+        /* some browsers refuse outside a service worker; the badge remains */
       }
-      if (soundOn) playChime(urgency);
-    },
-    [soundOn],
-  );
+    }
+    if (sound.current) playChime(urgency);
+  }, []);
 
   const clear = useCallback(() => setPending(0), []);
 

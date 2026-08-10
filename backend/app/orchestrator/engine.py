@@ -289,7 +289,12 @@ class RunEngine:
                 )
             return
 
-        if not self.sandbox.is_git_repo():
+        # `git` answers questions about the nearest repository *up the tree*,
+        # not about this directory. So a workspace nested inside any other
+        # checkout silently adopted it: the crew branched and committed in the
+        # parent instead of provisioning its own. It went unnoticed for as long
+        # as this project itself was not a repository.
+        if not self.sandbox.owns_git_repo():
             if self.settings.workspace_template is None:
                 # Defence in depth: preflight already refuses this. The crew
                 # initialises a repository it provisioned, never one it found.
@@ -302,8 +307,20 @@ class RunEngine:
             self.sandbox.git("-c", "user.email=crew@local", "-c", "user.name=Agent Crew",
                              "commit", "-m", "baseline before agent run", "--allow-empty")
         self.base_commit = self.sandbox.git("rev-parse", "HEAD").stdout.strip()
-        self.branch = f"agent/{self.run_id[:8]}-{slugify(self.request)}"
-        self.sandbox.git("checkout", "-b", self.branch)
+
+        # The readable part of the name is the same for every run of one task,
+        # so repetitions collided — and the failure was never read, leaving the
+        # database claiming a branch the run was not on. Names are now made
+        # free before use, and a checkout that still fails stops the run.
+        self.branch = self.sandbox.free_branch(
+            f"agent/{self.run_id[:8]}-{slugify(self.request)}"
+        )
+        checkout = self.sandbox.git("checkout", "-b", self.branch)
+        if checkout.returncode != 0:
+            raise Escalation(
+                f"could not put run {self.run_id[:8]} on its own branch "
+                f"{self.branch}: {checkout.stderr.strip()}"
+            )
         self.db.update_run(self.run_id, branch=self.branch, base_commit=self.base_commit)
 
     async def _record_baseline(self) -> None:

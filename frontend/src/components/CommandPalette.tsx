@@ -15,20 +15,18 @@ export interface Command {
  * this file knows nothing about runs or themes and cannot drift out of step
  * with them.
  *
- * The matching is a subsequence test rather than a substring one — "jwt auth"
- * finds "Ajouter l'authentification JWT" — because recalling a couple of words
- * from a task is easy and recalling its exact opening is not.
+ * Every typed word must appear somewhere, in any order — "auth jwt" and
+ * "jwt auth" both find "Ajouter l'authentification JWT". Order-independence is
+ * the point: recalling a couple of words from a task is easy, recalling the
+ * order they appear in is not.
  */
 function matches(needle: string, haystack: string): boolean {
-  if (!needle) return true;
   const target = haystack.toLowerCase();
-  let index = 0;
-  for (const word of needle.toLowerCase().split(/\s+/).filter(Boolean)) {
-    const at = target.indexOf(word, 0);
-    if (at === -1) return false;
-    index = at;
-  }
-  return index >= 0;
+  return needle
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => target.includes(word));
 }
 
 export function CommandPalette({

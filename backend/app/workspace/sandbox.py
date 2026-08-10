@@ -135,8 +135,42 @@ class Sandbox:
         )
 
     def is_git_repo(self) -> bool:
+        """True when this directory is *inside* a repository — possibly a parent's."""
         result = self.git("rev-parse", "--is-inside-work-tree")
         return result.returncode == 0 and result.stdout.strip() == "true"
+
+    def owns_git_repo(self) -> bool:
+        """True only when the repository's root *is* this directory.
+
+        `is_git_repo()` answers about the nearest repository up the tree, which
+        is the wrong question when deciding whether to create one: a workspace
+        nested inside another checkout would adopt it and start branching and
+        committing in someone else's history.
+        """
+        result = self.git("rev-parse", "--show-toplevel")
+        if result.returncode != 0:
+            return False
+        try:
+            return Path(result.stdout.strip()).resolve() == self.root.resolve()
+        except OSError:
+            return False
+
+    def free_branch(self, preferred: str) -> str:
+        """`preferred`, or the first unused variant of it.
+
+        The readable name is a prefix of the run id plus a slug of the request,
+        which is identical for every repetition of one benchmark task. Two runs
+        wanting one branch is not a conflict to report — it is a name to pick
+        again.
+        """
+        listed = self.git("branch", "--list", "--format=%(refname:short)")
+        taken = {line.strip() for line in listed.stdout.splitlines() if line.strip()}
+        if preferred not in taken:
+            return preferred
+        for suffix in range(2, 1000):
+            if f"{preferred}-{suffix}" not in taken:
+                return f"{preferred}-{suffix}"
+        raise SandboxViolation(f"no free branch name near {preferred}")
 
     def current_branch(self) -> str:
         return self.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()

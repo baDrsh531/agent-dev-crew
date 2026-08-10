@@ -48,10 +48,22 @@ export interface Dashboard {
   recent: Run[];
 }
 
+/**
+ * How many runs the dashboard asks for, and therefore how many it describes.
+ *
+ * Named once because the fetch and the summary have to agree: the API defaults
+ * to 50, `summarise` assumed 200, and past fifty runs the dashboard quietly
+ * described only the most recent fifty while its own caption said it covered
+ * everything. Two numbers that must match are one constant.
+ *
+ * 200 is the API's own ceiling (`le=200`).
+ */
+export const RUN_LIST_LIMIT = 200;
+
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Statuses a run can no longer leave on its own. */
-const TERMINAL: RunStatus[] = ["succeeded", "escalated", "failed", "cancelled"];
+const TERMINAL = new Set<RunStatus>(["succeeded", "escalated", "failed", "cancelled"]);
 
 /** Order the status breakdown reads in: outcome first, then what needs you. */
 const STATUS_ORDER: RunStatus[] = [
@@ -89,13 +101,13 @@ function shortLabel(run: Run): string {
   return words.length > 22 ? `${words.slice(0, 21)}…` : words;
 }
 
-export function summarise(runs: Run[], limit = 200, series = 8): Dashboard {
+export function summarise(runs: Run[], limit = RUN_LIST_LIMIT, series = 8): Dashboard {
   const byStatus = STATUS_ORDER.map((status) => ({
     status,
     count: runs.filter((r) => r.status === status).length,
   })).filter((entry) => entry.count > 0);
 
-  const finishedRuns = runs.filter((r) => TERMINAL.includes(r.status));
+  const finishedRuns = runs.filter((r) => TERMINAL.has(r.status));
   const succeeded = runs.filter((r) => r.status === "succeeded").length;
   // Cancelled runs are excluded from the denominator: a person stopping a run
   // is their decision, not the system failing at it.

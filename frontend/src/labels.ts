@@ -90,15 +90,22 @@ export function autonomyHint(id: string): string | undefined {
 
 /** `175000` -> `175k`. Long numbers in a KPI box are read, not computed with. */
 export function compactNumber(value: number): string {
-  if (value < 1000) return String(value);
-  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`;
+  if (!Number.isFinite(value)) return "—";
+  if (value < 1000) return String(Math.round(value));
+  // Rounding is decided *before* choosing the unit. Deciding after let
+  // 999,999 round up to "1000k" instead of stepping over to "1.0M".
+  if (value < 999_500) return `${(value / 1000).toFixed(value < 9_950 ? 1 : 0)}k`;
   return `${(value / 1_000_000).toFixed(1)}M`;
 }
 
 export function durationLabel(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
-  if (seconds < 60) return `${Math.round(seconds)} s`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = Math.round(seconds % 60);
-  return `${minutes} min ${String(rest).padStart(2, "0")}`;
+  // Round to whole seconds first, then split. Flooring the minutes and
+  // rounding the remainder separately let 119.7 s render as "1 min 60":
+  // durations come from subtracting two timestamps, so fractions are the
+  // rule, not the exception.
+  const whole = Math.round(seconds);
+  if (whole < 60) return `${whole} s`;
+  const minutes = Math.floor(whole / 60);
+  return `${minutes} min ${String(whole % 60).padStart(2, "0")}`;
 }

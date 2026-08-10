@@ -32,9 +32,22 @@ function pathsOf(header: string): { from: string; to: string } | null {
   return match ? { from: match[1], to: match[2] } : null;
 }
 
+/** Headers git emits between the file header and the first hunk. */
+const PREAMBLE = [
+  "index ", "new file", "deleted file", "old mode", "new mode",
+  "similarity index", "rename ",
+];
+
 export function parseDiff(text: string): DiffFile[] {
   const files: DiffFile[] = [];
   let current: DiffFile | null = null;
+  // `--- ` and `+++ ` are file headers *before* the first hunk and ordinary
+  // content after it — the marker character is the same either way. Treating
+  // them as headers everywhere meant removing a line that starts with `-- `
+  // (a SQL, Lua or Haskell comment) produced `--- foo`, which was swallowed:
+  // the line vanished from the diff and from the count. This flag is the whole
+  // difference between the two readings.
+  let inHunk = false;
 
   for (const raw of (text ?? "").split("\n")) {
     const header = pathsOf(raw);
@@ -48,6 +61,7 @@ export function parseDiff(text: string): DiffFile[] {
         lines: [],
       };
       files.push(current);
+      inHunk = false;
       continue;
     }
     if (!current) continue;
@@ -56,18 +70,13 @@ export function parseDiff(text: string): DiffFile[] {
       current.binary = true;
       continue;
     }
-    // Headers git emits between the file header and the hunks. `+++`/`---`
-    // start with a marker character and would otherwise count as changes.
-    if (
-      raw.startsWith("index ") || raw.startsWith("--- ") || raw.startsWith("+++ ") ||
-      raw.startsWith("new file") || raw.startsWith("deleted file") ||
-      raw.startsWith("old mode") || raw.startsWith("new mode") ||
-      raw.startsWith("similarity index") || raw.startsWith("rename ")
-    ) {
+    if (!inHunk && (PREAMBLE.some((p) => raw.startsWith(p)) ||
+                    raw.startsWith("--- ") || raw.startsWith("+++ "))) {
       continue;
     }
     if (raw.startsWith("@@")) {
       current.lines.push({ kind: "meta", text: raw });
+      inHunk = true;
       continue;
     }
     if (raw.startsWith("+")) {

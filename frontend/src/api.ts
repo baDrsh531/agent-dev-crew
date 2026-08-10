@@ -1,3 +1,4 @@
+import { RUN_LIST_LIMIT } from "./stats";
 import type {
   AppConfig, DiffResponse, EndpointHealth, RunEvent, Snapshot, WorkspaceListing,
 } from "./types";
@@ -21,8 +22,11 @@ export const api = {
    *  own call rather than part of the cheap health check. */
   endpointHealth: () => fetch(`${BASE}/health/endpoints`).then(json<EndpointHealth>),
 
-  listRuns: () =>
-    fetch(`${BASE}/runs`).then(json<{ runs: Snapshot["run"][] }>).then((d) => d.runs),
+  /** Asks for exactly what the dashboard claims to describe — see RUN_LIST_LIMIT. */
+  listRuns: (limit: number = RUN_LIST_LIMIT) =>
+    fetch(`${BASE}/runs?limit=${limit}`)
+      .then(json<{ runs: Snapshot["run"][] }>)
+      .then((d) => d.runs),
 
   createRun: (request: string, approvalMode?: string, maxTokens?: number | null) =>
     fetch(`${BASE}/runs`, {

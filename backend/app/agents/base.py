@@ -20,6 +20,7 @@ from ..domain.events import EventType
 from ..domain.roles import AgentRole
 from ..llm.base import LLMClient, LLMRequest, LLMResponse, Usage
 from ..tools.base import Tool, ToolContext, ToolResult, needs_approval
+from ..tools.determinism import stabilise
 from ..workspace.sandbox import Sandbox
 
 T = TypeVar("T", bound=BaseModel)
@@ -150,7 +151,11 @@ class Agent(Generic[T]):
         return {
             "type": "tool_result",
             "tool_use_id": call.get("id", ""),
-            "content": result.content or "(no output)",
+            # Stabilised here and only here. The event above keeps the real
+            # output; this is the copy that becomes part of the conversation,
+            # and a duration or a commit hash in it makes the next turn's input
+            # different from the last run's for no reason anyone chose.
+            "content": stabilise(result.content) or "(no output)",
             "is_error": result.is_error,
         }
 

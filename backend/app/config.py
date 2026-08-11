@@ -102,9 +102,8 @@ class Settings(BaseSettings):
     # The first measurement said it made things worse and it shipped off. That
     # measurement was one run per task, which `--compare` itself classes
     # `unrepeated`: with no repetitions there are no ranges, so nothing could
-    # be concluded either way. Re-measured at three repetitions per task, with
-    # volatile values kept out of the conversation, the ranges stopped
-    # overlapping and the verdicts became real:
+    # be concluded either way. Re-measured at three repetitions per task, the
+    # ranges stopped overlapping and the verdicts became real:
     #
     #   tag_validation  −40% tokens, −29% tool calls, and 0/3 → 3/3 passing
     #   pagination      −12% tokens, −13% tool calls

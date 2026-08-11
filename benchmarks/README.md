@@ -123,9 +123,8 @@ repetitions there are no ranges, and `--compare` says so itself: every row
 comes back `unrepeated`. It could not support a conclusion in either
 direction, including the one it was used for.
 
-Re-measured at **three repetitions per task**, greedy, one server, with
-volatile values kept out of the conversation, the ranges stopped overlapping
-and the verdicts became real:
+Re-measured at **three repetitions per task**, greedy, one server, one process
+from end to end, the ranges stopped overlapping and the verdicts became real:
 
 | task | tokens | tool calls | verdict |
 |---|---|---|---|
@@ -146,6 +145,14 @@ conversation of the four, and the map's per-turn context cost pushes it from
 290-337k tokens to 406-427k — straight through the 400k ceiling, turning three
 passes into three escalations. A task with that much back-and-forth needs a
 larger budget, or this switched off.
+
+**What this measurement does not show.** It predates the change that keeps
+volatile values — pytest durations, git object names — out of the model's own
+conversation, so the runs still diverge from one another: `jwt_auth` without
+the map spans 290–337k tokens across three repetitions, a 16% spread. The
+comparison holds because both passes ran in one process under identical
+conditions, not because the runs were reproducible. Re-running it with that
+change active should tighten every range, and is worth doing.
 
 The lesson is about the instrument, not the feature: a plausible optimisation
 was rejected on evidence that never existed, and only a repeated measurement

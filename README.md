@@ -84,16 +84,24 @@ acceptance tests the crew never sees, plus a `--validate` mode that proves the
 tasks themselves are neither trivial nor unfair. See
 [`benchmarks/`](benchmarks/README.md).
 
-It has already earned its cost, and in a more interesting way than a slogan.
-A plausible optimisation — injecting a static map of the repository into every
-prompt to save exploration tool calls — summed **worse** over the four tasks:
-240 tool calls against 181, 2.36M tokens against 1.49M, for the same number of
-passes. But that was one run per task, and the harness's own rule is that a
-difference is real only when the observed ranges do not overlap; with no
-repetitions `--compare` reports every row as `unrepeated`. So the finding is
-not "the map costs 58% more" — it is **"there is no evidence the map helps"**,
-which is still enough to ship it disabled. Without the harness it would have
-shipped on, because the reasoning behind it was sound.
+It has already earned its cost twice, in opposite directions. Injecting a
+static map of the repository into every prompt, to save the exploration tool
+calls the benchmark had shown agents spending, measured *worse* and shipped
+disabled. Re-measured later at three repetitions per task instead of one, the
+answer reversed: **−10% tokens, −11% tool calls, and one more task passing
+every repetition**, with the ranges no longer overlapping — so this time the
+verdict means something. It now ships **on**.
+
+The first measurement was not merely unlucky, it was inadmissible: one run per
+task gives no range, and `--compare` labels every such row `unrepeated`. It
+could not support a conclusion in either direction, including the one it was
+used for.
+
+The exception is worth keeping in view. `jwt_auth` has the longest
+conversation of the four tasks, and the map's per-turn cost pushes it from
+290–337k tokens to 406–427k — through the 400k ceiling, turning three passes
+into three escalations. An optimisation that helps three tasks and breaks the
+fourth is a real result, not a rounding error, and it is written down as one.
 
 **11. The user talks in their own words.** A run starts with intake: an agent
 restates the request in plain language, proposes what it will do, and asks at

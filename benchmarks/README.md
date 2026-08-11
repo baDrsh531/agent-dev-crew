@@ -111,34 +111,50 @@ and re-measured before anything is concluded from them.
 
 ## What it has actually caught
 
-**A plausible optimisation that made things worse.** The benchmark showed agents
-spending tool calls rediscovering the repository layout, so a static map
-(routes, classes, functions — built with `ast`, no model) was injected into
-every system prompt. Measured over the four tasks under identical ceilings:
+**A measurement that reversed itself once it was done properly.** The benchmark
+showed agents spending tool calls rediscovering the repository layout, so a
+static map (routes, classes, functions — built with `ast`, no model) was
+injected into every system prompt.
 
-| | tool calls | tokens | passes |
-|---|---:|---:|---:|
-| without the map | 181 | 1,494,789 | 3/4 |
-| with the map | 240 | 2,358,223 | 3/4 |
-| | **+33%** | **+58%** | unchanged |
+The first measurement said it made things worse, and it shipped off. That
+measurement was **one run per task** — and this harness's own rule is that a
+difference is real only when the observed ranges do not overlap. With no
+repetitions there are no ranges, and `--compare` says so itself: every row
+comes back `unrepeated`. It could not support a conclusion in either
+direction, including the one it was used for.
 
-Split by task, the two simple ones improved and the two hard ones blew up —
-plausibly because the extra context pushes a 65k-window model into re-reading.
+Re-measured at **three repetitions per task**, greedy, one server, with
+volatile values kept out of the conversation, the ranges stopped overlapping
+and the verdicts became real:
 
-**Read those totals with the caveat they deserve.** They are one run per task,
-and this harness's own rule is that a difference is real only when the observed
-ranges do not overlap. With no repetitions there are no ranges, and
-`--compare` says so itself — every row comes back `unrepeated`, the verdict
-`indistinguishable`. So the honest reading is not "the map costs 58% more
-tokens"; it is **"there is no evidence the map helps"**.
+| task | tokens | tool calls | verdict |
+|---|---|---|---|
+| `tag_validation` | 404k -> 241k (**-40%**) | 41 -> 29 (-29%) | better, and 0/3 -> 3/3 passing |
+| `pagination` | 234k -> 206k (-12%) | 31 -> 27 (-13%) | better |
+| `search` | 294k -> 271k | 40 -> 32 (-20%) | fewer tool calls; tokens indistinguishable |
+| `jwt_auth` | 331k -> 408k (**+24%**) | 47 -> 49 | **worse** |
 
-That is still enough to decide. The feature is kept but **off by default**
-(`REPO_MAP_ENABLED=false`), because without evidence that a change helps, the
-default that changes nothing is the one to ship. Re-measuring it under
-`--repeat 3` and greedy decoding would settle it properly.
+| | tokens | tool calls | tasks passing every repetition |
+|---|---:|---:|:---:|
+| without the map | 3,790,052 | 467 | 2/4 |
+| with the map | **3,392,329** | **414** | **3/4** |
 
-That is what this harness is for. Without it the change would have shipped,
-because the reasoning behind it was sound.
+So it ships **on** (`REPO_MAP_ENABLED=true`).
+
+**The exception is not a rounding error.** `jwt_auth` has the longest
+conversation of the four, and the map's per-turn context cost pushes it from
+290-337k tokens to 406-427k — straight through the 400k ceiling, turning three
+passes into three escalations. A task with that much back-and-forth needs a
+larger budget, or this switched off.
+
+The lesson is about the instrument, not the feature: a plausible optimisation
+was rejected on evidence that never existed, and only a repeated measurement
+could say so.
+
+That is what this harness is for — and it cuts both ways. It was used once to
+refuse a change that sounded right, and once to accept the same change after
+the refusal turned out to rest on nothing. A single run per task is an
+anecdote; `--repeat 3` is the smallest thing that can disagree with you.
 
 **Run-to-run variance is large and must be respected.** `pagination` scored
 11/11, then 3/11, then 11/11 on the same code with the same settings.

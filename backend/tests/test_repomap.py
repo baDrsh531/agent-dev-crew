@@ -142,7 +142,11 @@ def test_the_map_is_off_by_default() -> None:
     """It measured worse than not doing it; shipping it on would be dishonest."""
     from app.config import Settings
 
-    assert Settings(llm_provider="fake").repo_map_enabled is False
+    # On, since re-measuring at three repetitions per task reversed the answer:
+    # −10% tokens and −11% tool calls overall, one more task passing every
+    # repetition. The first measurement was a single run per task and could not
+    # support a conclusion in either direction.
+    assert Settings(llm_provider="fake").repo_map_enabled is True
 
 
 def test_the_map_is_labelled_as_static_analysis() -> None:

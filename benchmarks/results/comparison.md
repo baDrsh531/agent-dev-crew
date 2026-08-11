@@ -7,11 +7,11 @@ overlap. With a handful of repetitions, anything weaker is noise.
 
 | task | metric | before | after | change | verdict |
 |---|---|---|---|---:|---|
-| `jwt_auth` | tokens | 355,416 (310,768–400,063) | 407,686 (402,016–413,357) | +15% | worse |
-| `jwt_auth` | tool_calls | 45 (39–51) | 43 (43–43) | -4% | indistinguishable |
-| `pagination` | tokens | 154,158 (105,188–203,129) | 227,213 (215,463–238,963) | +47% | worse |
-| `pagination` | tool_calls | 25 (23–27) | 32 (28–35) | +26% | worse |
-| `search` | tokens | 240,308 (231,953–248,662) | 251,258 (188,324–314,191) | +5% | indistinguishable |
-| `search` | tool_calls | 37 (36–38) | 38 (36–39) | +1% | indistinguishable |
-| `tag_validation` | tokens | 423,858 (421,347–426,370) | 413,783 (410,054–417,512) | -2% | better |
-| `tag_validation` | tool_calls | 39 (38–40) | 40 (39–40) | +1% | indistinguishable |
+| `jwt_auth` | tokens | 330,633 (290,066–336,565) | 408,356 (405,947–426,715) | +24% | worse |
+| `jwt_auth` | tool_calls | 47 (40–48) | 49 (49–52) | +4% | worse |
+| `pagination` | tokens | 233,825 (227,397–239,447) | 205,562 (200,694–211,039) | -12% | better |
+| `pagination` | tool_calls | 31 (30–31) | 27 (27–28) | -13% | better |
+| `search` | tokens | 293,568 (235,871–407,570) | 270,514 (268,461–291,087) | -8% | indistinguishable |
+| `search` | tool_calls | 40 (35–49) | 32 (32–33) | -20% | better |
+| `tag_validation` | tokens | 403,746 (367,694–423,670) | 241,069 (221,342–241,543) | -40% | better |
+| `tag_validation` | tool_calls | 41 (34–41) | 29 (27–29) | -29% | better |

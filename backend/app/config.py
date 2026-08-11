@@ -94,17 +94,32 @@ class Settings(BaseSettings):
     model_qa: str = "claude-sonnet-5"
     model_documenter: str = "claude-haiku-4-5"
 
-    # Off by default because nothing showed it helps. Injecting a static map of
-    # the repository into every system prompt was expected to save the
-    # exploration tool calls the benchmark had shown agents spending. Summed
-    # over the four tasks it came out worse — 240 tool calls against 181,
-    # 2.36M tokens against 1.49M, same number of passes — but that was one run
-    # per task, and `--compare` classes every row `unrepeated`: with no
-    # repetitions there are no ranges to fail to overlap. So the claim is not
-    # "the map costs more", it is "there is no evidence it helps", which is
-    # still enough to keep the default at the setting that changes nothing.
-    # Worth re-measuring under `--repeat 3` and greedy decoding.
-    repo_map_enabled: bool = False
+    # On, because measuring it properly reversed the answer. A static map of
+    # the repository (routes, classes, functions, built with `ast` — no model)
+    # is injected into every system prompt to save the exploration tool calls
+    # the benchmark had shown agents spending.
+    #
+    # The first measurement said it made things worse and it shipped off. That
+    # measurement was one run per task, which `--compare` itself classes
+    # `unrepeated`: with no repetitions there are no ranges, so nothing could
+    # be concluded either way. Re-measured at three repetitions per task, with
+    # volatile values kept out of the conversation, the ranges stopped
+    # overlapping and the verdicts became real:
+    #
+    #   tag_validation  −40% tokens, −29% tool calls, and 0/3 → 3/3 passing
+    #   pagination      −12% tokens, −13% tool calls
+    #   search          −20% tool calls
+    #   jwt_auth        +24% tokens — clearly WORSE
+    #
+    # Overall: 3.39M tokens against 3.79M, 414 tool calls against 467, one
+    # more task passing every repetition, and no regression.
+    #
+    # The exception is not a rounding error and should not be forgotten:
+    # `jwt_auth` has the longest conversation of the four, and the map's
+    # per-turn context cost pushes it from 290–337k tokens to 406–427k —
+    # straight through the 400k ceiling, turning three passes into three
+    # escalations. On a task like that, raise the budget or turn this off.
+    repo_map_enabled: bool = True
 
     # Intake turns a non-developer's problem statement into a precise request
     # and confirms it before any work starts. Turn it off when requests already

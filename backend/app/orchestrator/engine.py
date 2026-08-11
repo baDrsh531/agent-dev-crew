@@ -642,8 +642,9 @@ class RunEngine:
                 {"message": f"working on branch {self.branch} from {self.base_commit[:8]}"},
             )
 
-            # Static analysis, no model and no tool calls. Off by default: it
-            # measured worse than not doing it — see Settings.repo_map_enabled.
+            # Static analysis, no model and no tool calls. On by default, and
+            # the measurement behind that lives in Settings.repo_map_enabled —
+            # including the one benchmark task it makes worse.
             if self.settings.repo_map_enabled:
                 self.repo_map = repomap.build(self.sandbox)
             if self.repo_map:

@@ -10,6 +10,7 @@ python benchmarks/harness.py --repeat 3            # run everything three times 
 python benchmarks/harness.py --tasks pagination    # one task
 python benchmarks/harness.py --max-tokens 1200000 --max-tool-calls 80   # different ceilings
 python benchmarks/harness.py --compare results/BASELINE.json            # judge a change
+python benchmarks/diverge.py search                # where did two repetitions stop agreeing?
 LLM_PROVIDER=fake python benchmarks/harness.py     # smoke-test the harness, offline and free
 ```
 
@@ -173,10 +174,25 @@ names — narrowed most of the spread across three repetitions:
 | `tag_validation` | 2.5% |
 | `search` | **32%** |
 
-`search` is the outlier, and the same event-by-event comparison that found the
-pytest duration will find whatever it is still reading. Until then, treat that
-task's token figures as indicative and its tool-call figures — whose ranges do
-not overlap — as measured.
+`search` is the outlier, and `diverge.py` says why. Compared exchange by
+exchange — against what the model actually read, not what the log stored —
+the first difference is no longer a tool result. It is the model's own
+reasoning, from an identical prefix:
+
+```
+python benchmarks/diverge.py search
+  first divergence at exchange 67 — the model says (thinking)
+```
+
+So there is nothing left to fix on this side. A llama.cpp server with
+continuous batching does not fix the order of floating-point reductions, so
+greedy decoding is not bitwise reproducible under varying load; one differing
+logit inside a long reasoning chain then changes everything after it. `search`
+diverges worse than the others because its divergence lands on a *decision* —
+which route shadows which — rather than on a phrasing.
+
+That is what repetitions are for. Ranges, not point estimates, and a
+difference called real only when the ranges do not overlap.
 
 Note that the comparison above never depended on reproducibility: both passes
 ran in one process under identical conditions, which is what makes them

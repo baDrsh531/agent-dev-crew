@@ -577,6 +577,33 @@ def to_markdown(results: list[TaskResult], settings: Settings, *, concurrency: i
     return "\n".join(lines)
 
 
+def _code_version() -> dict[str, Any]:
+    """The commit this run's code came from, and whether it was modified.
+
+    `dirty` matters as much as the hash: a measurement taken over uncommitted
+    edits cannot be reproduced from the commit alone, and saying so is cheaper
+    than discovering it later.
+    """
+    root = Path(__file__).resolve().parents[1]
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root,
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=root,
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"commit": "unknown", "dirty": None}
+    if head.returncode != 0:
+        return {"commit": "not a git repository", "dirty": None}
+    return {
+        "commit": head.stdout.strip(),
+        "dirty": bool(status.stdout.strip()) if status.returncode == 0 else None,
+    }
+
+
 def write_results(
     results: list[TaskResult], settings: Settings, *, concurrency: int = 1
 ) -> tuple[Path, Path]:
@@ -590,6 +617,12 @@ def write_results(
         # comparison against a differently-paced run would otherwise read the
         # queueing as a regression.
         "concurrency": concurrency,
+        # Which code produced these numbers. A measurement was once read as
+        # having run with a fix that was committed while it was already in
+        # flight — the process had loaded the old modules at import, and
+        # nothing in the file said so. Reconstructing that from timestamps
+        # afterwards took longer than recording it here ever will.
+        "code_version": _code_version(),
         "results": [r.as_dict() for r in results],
         # Stored alongside the raw runs so a later comparison never has to
         # recompute — and so the sample size travels with the numbers.

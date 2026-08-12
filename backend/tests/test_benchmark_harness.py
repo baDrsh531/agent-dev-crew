@@ -6,6 +6,7 @@ than by running a benchmark, which would need a model and several minutes.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -205,3 +206,34 @@ def test_failures_are_reported_with_their_output(settings) -> None:
     assert "## Failures" in report
     assert "token budget exhausted" in report
     assert "test_admin" in report
+
+
+# -- provenance --------------------------------------------------------------
+
+
+def test_results_record_the_code_that_produced_them(settings, tmp_path) -> None:
+    """A measurement was once read as having run with a fix committed while it
+    was already in flight: the process had loaded the old modules at import,
+    and nothing in the file said so. Reconstructing that from timestamps took
+    an hour; recording it costs a subprocess call."""
+    import harness
+
+    payload_dir = tmp_path / "results"
+    original, harness.RESULTS_DIR = harness.RESULTS_DIR, payload_dir
+    try:
+        json_path, _ = harness.write_results([], settings)
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+    finally:
+        harness.RESULTS_DIR = original
+
+    version = payload["code_version"]
+    assert set(version) == {"commit", "dirty"}
+    assert version["commit"], "a result with no provenance is a result nobody can reproduce"
+
+
+def test_uncommitted_edits_are_reported_not_hidden() -> None:
+    """The hash alone cannot reproduce a run taken over local edits."""
+    import harness
+
+    version = harness._code_version()
+    assert version["dirty"] in (True, False, None)

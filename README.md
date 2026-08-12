@@ -88,9 +88,11 @@ It has already earned its cost twice, in opposite directions. Injecting a
 static map of the repository into every prompt, to save the exploration tool
 calls the benchmark had shown agents spending, measured *worse* and shipped
 disabled. Re-measured later at three repetitions per task instead of one, the
-answer reversed: **−10% tokens, −11% tool calls, and one more task passing
-every repetition**, with the ranges no longer overlapping — so this time the
-verdict means something. It now ships **on**.
+answer reversed: **−17% tokens, −15% tool calls, and three regressions down
+to none**, with the ranges no longer overlapping — so this time the verdict
+means something. Measured twice, the second time on a build that keeps
+volatile values out of the model's conversation; every verdict kept its sign.
+It now ships **on**.
 
 The first measurement was not merely unlucky, it was inadmissible: one run per
 task gives no range, and `--compare` labels every such row `unrepeated`. It
@@ -99,7 +101,7 @@ used for.
 
 The exception is worth keeping in view. `jwt_auth` has the longest
 conversation of the four tasks, and the map's per-turn cost pushes it from
-290–337k tokens to 406–427k — through the 400k ceiling, turning three passes
+285–315k tokens to 402–408k — through the 400k ceiling, turning three passes
 into three escalations. An optimisation that helps three tasks and breaks the
 fourth is a real result, not a rounding error, and it is written down as one.
 

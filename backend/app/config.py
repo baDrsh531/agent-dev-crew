@@ -105,17 +105,19 @@ class Settings(BaseSettings):
     # be concluded either way. Re-measured at three repetitions per task, the
     # ranges stopped overlapping and the verdicts became real:
     #
-    #   tag_validation  −40% tokens, −29% tool calls, and 0/3 → 3/3 passing
-    #   pagination      −12% tokens, −13% tool calls
-    #   search          −20% tool calls
-    #   jwt_auth        +24% tokens — clearly WORSE
+    #   tag_validation  -40% tokens, -24% tool calls
+    #   pagination      -19% tokens, -16% tool calls
+    #   search          -38% tool calls
+    #   jwt_auth        +33% tokens — clearly WORSE
     #
-    # Overall: 3.39M tokens against 3.79M, 414 tool calls against 467, one
-    # more task passing every repetition, and no regression.
+    # Overall: 3.29M tokens against 3.96M, 405 tool calls against 476, and
+    # zero regressions against three. Measured twice, the second time on a
+    # build that keeps volatile values out of the model's conversation; every
+    # verdict kept its sign, so this replicated rather than merely re-read.
     #
     # The exception is not a rounding error and should not be forgotten:
     # `jwt_auth` has the longest conversation of the four, and the map's
-    # per-turn context cost pushes it from 290–337k tokens to 406–427k —
+    # per-turn context cost pushes it from 285–315k tokens to 402–408k —
     # straight through the 400k ceiling, turning three passes into three
     # escalations. On a task like that, raise the budget or turn this off.
     repo_map_enabled: bool = True

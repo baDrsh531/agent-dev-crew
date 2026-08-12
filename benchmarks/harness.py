@@ -591,8 +591,11 @@ def _code_version() -> dict[str, Any]:
             capture_output=True, text=True, timeout=15, check=False,
         )
         status = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=root,
-            capture_output=True, text=True, timeout=15, check=False,
+            # Results are excluded: the previous pass writes its own summary
+            # into this directory, so every pass after the first would report
+            # a dirty tree for a reason that has nothing to do with the code.
+            ["git", "status", "--porcelain", "--", ".", ":!benchmarks/results"],
+            cwd=root, capture_output=True, text=True, timeout=15, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         return {"commit": "unknown", "dirty": None}

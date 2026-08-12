@@ -124,35 +124,51 @@ comes back `unrepeated`. It could not support a conclusion in either
 direction, including the one it was used for.
 
 Re-measured at **three repetitions per task**, greedy, one server, one process
-from end to end, the ranges stopped overlapping and the verdicts became real:
+from end to end, the ranges stopped overlapping and the verdicts became real.
+It was then **measured a second time**, on a build that keeps volatile values
+out of the model's own conversation, and every verdict kept its sign:
 
 | task | tokens | tool calls | verdict |
 |---|---|---|---|
-| `tag_validation` | 404k -> 241k (**-40%**) | 41 -> 29 (-29%) | better, and 0/3 -> 3/3 passing |
-| `pagination` | 234k -> 206k (-12%) | 31 -> 27 (-13%) | better |
-| `search` | 294k -> 271k | 40 -> 32 (-20%) | fewer tool calls; tokens indistinguishable |
-| `jwt_auth` | 331k -> 408k (**+24%**) | 47 -> 49 | **worse** |
+| `tag_validation` | 401k -> 241k (**-40%**) | 38 -> 29 (-24%) | better |
+| `pagination` | 242k -> 196k (-19%) | 31 -> 26 (-16%) | better |
+| `search` | indistinguishable | 52 -> 32 (**-38%**) | fewer tool calls |
+| `jwt_auth` | 305k -> 407k (**+33%**) | 44 -> 49 (+11%) | **worse** |
 
-| | tokens | tool calls | tasks passing every repetition |
+| | tokens | tool calls | regressions |
 |---|---:|---:|:---:|
-| without the map | 3,790,052 | 467 | 2/4 |
-| with the map | **3,392,329** | **414** | **3/4** |
+| without the map | 3,963,296 | 476 | **3** |
+| with the map | **3,289,167** | **405** | **0** |
 
-So it ships **on** (`REPO_MAP_ENABLED=true`).
+So it ships **on** (`REPO_MAP_ENABLED=true`), on a result that replicated
+rather than one that was merely re-read.
 
 **The exception is not a rounding error.** `jwt_auth` has the longest
 conversation of the four, and the map's per-turn context cost pushes it from
-290-337k tokens to 406-427k — straight through the 400k ceiling, turning three
+285-315k tokens to 402-408k — straight through the 400k ceiling, turning three
 passes into three escalations. A task with that much back-and-forth needs a
 larger budget, or this switched off.
 
-**What this measurement does not show.** It predates the change that keeps
-volatile values — pytest durations, git object names — out of the model's own
-conversation, so the runs still diverge from one another: `jwt_auth` without
-the map spans 290–337k tokens across three repetitions, a 16% spread. The
-comparison holds because both passes ran in one process under identical
-conditions, not because the runs were reproducible. Re-running it with that
-change active should tighten every range, and is worth doing.
+**How reproducible the runs are, and where they are not.** Keeping volatile
+values out of the model's own conversation — pytest durations, git object
+names — narrowed most of the spread across three repetitions:
+
+| task (with the map) | spread across 3 repetitions |
+|---|---:|
+| `jwt_auth` | 1.4% |
+| `pagination` | 2.0% |
+| `tag_validation` | 2.5% |
+| `search` | **32%** |
+
+`search` is the outlier, and the same event-by-event comparison that found the
+pytest duration will find whatever it is still reading. Until then, treat that
+task's token figures as indicative and its tool-call figures — whose ranges do
+not overlap — as measured.
+
+Note that the comparison above never depended on reproducibility: both passes
+ran in one process under identical conditions, which is what makes them
+comparable. Reproducibility is what makes each individual number *trustworthy*,
+and it is a different property.
 
 The lesson is about the instrument, not the feature: a plausible optimisation
 was rejected on evidence that never existed, and only a repeated measurement

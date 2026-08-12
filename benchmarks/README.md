@@ -94,20 +94,33 @@ test checks that an over-large limit is capped rather than rejected, the request
 must say so — otherwise the benchmark measures guessing, not capability. Then
 run `--validate` before trusting a single number.
 
-## A caveat on the results committed here
+## What is committed here, and what was deleted
 
-Every measurement taken with `--repeat` greater than one, before the fix in
-`Un run travaille dans SON dépôt, sur SA branche`, ran with colliding branch
-names: the readable part of a branch is the run id prefix plus a slug of the
-request, which is identical for every repetition of one task. The second and
-third repetitions failed to create their branch, the return code was never
-read, and they carried on inside the first one's.
+`results/` holds exactly two files: `repomap-off.md` and `repomap-on.md`, the
+two passes behind the one conclusion this benchmark currently supports. Both
+record three repetitions per task and the commit that produced them.
 
-Tokens and tool calls are unlikely to have moved much — the agents work in the
-filesystem, not in git — but the run's diff, and therefore the change-size
-check handed to QA, was wrong for those repetitions. The figures in
-`GREEDY-2x.md` and the documenter comparison should be read with that in mind,
-and re-measured before anything is concluded from them.
+Five other measurements used to sit beside them and have been deleted rather
+than annotated:
+
+- `AFTER-repomap.md` and `BASELINE-before-repomap.md` — one run per task, so
+  no ranges, so nothing concludable. This README spent a section explaining
+  why they could not be read; a file that needs that much fencing is better
+  gone.
+- `GREEDY-2x.md`, `baseline-documenter.md`, `routed-documenter.md` — two
+  repetitions each, and all taken before branch names were made unique. Their
+  second and third repetitions silently shared the first one's branch, so each
+  run's diff, and the change-size check handed to QA, was wrong.
+
+A results file exists so someone can check a claim. None of these supported a
+current claim, and each of them, read casually, looked authoritative. Keeping
+them with a warning attached puts the burden on the reader to notice the
+warning.
+
+`latest.md` and `comparison.md` are no longer tracked either. They are
+rewritten by every run — tracking them meant one pass dirtied the tree for the
+next — and "latest" does not say what it is the latest *of*. A result worth
+keeping gets copied to a name that explains it.
 
 ## What it has actually caught
 

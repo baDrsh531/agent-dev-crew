@@ -7,6 +7,11 @@ data/
 # annoncé » doit publier de quoi vérifier.
 benchmarks/results/*
 !benchmarks/results/*.md
+# Réécrits à chaque exécution : les suivre faisait qu'une passe salissait
+# l'arbre pour la suivante, et un fichier « latest » ne dit pas de quoi il
+# est le dernier. Un résultat qui compte se copie sous un nom qui l'explique.
+benchmarks/results/latest.md
+benchmarks/results/comparison.md
 
 __pycache__/
 .coverage

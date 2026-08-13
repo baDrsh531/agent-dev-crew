@@ -208,6 +208,30 @@ refuse a change that sounded right, and once to accept the same change after
 the refusal turned out to rest on nothing. A single run per task is an
 anecdote; `--repeat 3` is the smallest thing that can disagree with you.
 
+**An outage was being reported as a finding about the crew.** Halfway through a
+pass, the model server went away. Two of three `tag_validation` repetitions
+never reached it — one disconnected mid-run, the next could not connect at all
+— and the harness scored them like any other failure. The published row read:
+
+```
+| `tag_validation` | 1/3 ⚠︎ flaky | PARTIAL, PARTIAL, PASS | 135,634 (1,713–231,852) |
+```
+
+Every number there is about the network. The median was computed over a run
+that made one call before dying, the range was widened by it, and the task was
+labelled flaky — when the task was fine and the server was down.
+
+A run that never reached a model now scores `unusable`: excluded from every
+median and range rather than averaged into one, counted so the row can say
+`2 never ran`, and — because the sample is genuinely smaller — enough to make
+`--compare` drop from a confident verdict to `unrepeated`. That is the safe
+direction: fewer measurements must weaken a claim, never quietly support it.
+
+The pass also stops at the first such run instead of grinding on. The one this
+rule came from kept going for sixteen hours against a server that was not
+there. A short pass that says why it stopped is worth more than a complete one
+that has to be thrown away.
+
 **Run-to-run variance is large and must be respected.** `pagination` scored
 11/11, then 3/11, then 11/11 on the same code with the same settings.
 

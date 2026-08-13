@@ -151,3 +151,55 @@ def test_the_report_states_the_rule_it_applied() -> None:
     ))
     assert "do not" in report and "overlap" in report
     assert "worse" in report
+
+
+# --------------------------------------------------------------------------
+# runs that never reached a model
+# --------------------------------------------------------------------------
+#
+# From a real pass: the model server went away mid-suite, two of three
+# `tag_validation` repetitions never called it, and the report said
+# `1/3 ⚠︎ flaky`, median 135,634 tokens over a range of 1,713–231,852. Every
+# one of those numbers was about the network, and every one of them read as an
+# accusation against the crew.
+
+
+def test_a_run_that_never_reached_a_model_is_not_averaged_in():
+    aggregates = aggregate([
+        result("tags", "pass", 230_000, 27),
+        result("tags", "unusable", 1_713, 4),
+        result("tags", "unusable", 135_634, 22),
+    ])
+    tags = aggregates[0]
+
+    assert tags.unusable == 2
+    assert tags.n == 1, "only the repetition that ran counts as a repetition"
+    assert tags.tokens.values == [230_000]
+    assert tags.tokens.low == tags.tokens.high == 230_000
+    assert not tags.is_flaky, "one outcome cannot disagree with itself"
+
+
+def test_excluding_them_makes_the_comparison_admit_it_has_one_sample():
+    """The safe direction: fewer measurements must weaken the verdict.
+
+    Before, the dead runs padded the sample and let a confident verdict rest
+    on a range that infrastructure had widened.
+    """
+    before = aggregate([result("tags", "pass", 100_000, 20)])
+    after = aggregate([
+        result("tags", "pass", 400_000, 40),
+        result("tags", "unusable", 0, 0),
+        result("tags", "unusable", 0, 0),
+    ])
+    verdict = compare_metric(before[0].tokens, after[0].tokens)
+
+    assert verdict["verdict"] == "unrepeated"
+    assert verdict["change_pct"] == 300.0, "the number is still reported, just not believed"
+
+
+def test_a_task_where_nothing_ran_reports_no_data_rather_than_a_verdict():
+    before = aggregate([result("tags", "pass", 100_000, 20)])
+    after = aggregate([result("tags", "unusable", 0, 0)])
+
+    assert after[0].n == 0
+    assert compare_metric(before[0].tokens, after[0].tokens)["verdict"] == "no data"

@@ -68,6 +68,8 @@ class TaskAggregate:
     duration_s: Distribution = field(default_factory=Distribution)
     hidden_passed: Distribution = field(default_factory=Distribution)
     hidden_total: int = 0
+    #: Repetitions that never reached a model — counted, never averaged in.
+    unusable: int = 0
 
     @property
     def n(self) -> int:
@@ -94,6 +96,7 @@ class TaskAggregate:
             "passes": self.passes,
             "pass_rate": round(self.pass_rate, 3),
             "flaky": self.is_flaky,
+            "unusable": self.unusable,
             "tokens": self.tokens.as_dict(),
             "tool_calls": self.tool_calls.as_dict(),
             "duration_s": self.duration_s.as_dict(),
@@ -107,6 +110,14 @@ def aggregate(results: Iterable[Any]) -> list[TaskAggregate]:
     by_task: dict[str, TaskAggregate] = {}
     for result in results:
         entry = by_task.setdefault(result.task_id, TaskAggregate(task_id=result.task_id))
+        if getattr(result, "score", "") == "unusable":
+            # A repetition that never reached a model says nothing about the
+            # crew. Averaging it in produced a median of 135,634 tokens over a
+            # range of 1,713–231,852 and called the task flaky; the task was
+            # fine, the server was down. Counted so the report can say how many
+            # measurements are actually behind each row.
+            entry.unusable += 1
+            continue
         entry.scores.append(result.score)
         entry.tokens.values.append(result.tokens)
         entry.tool_calls.values.append(result.tool_calls)

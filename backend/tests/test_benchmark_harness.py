@@ -17,7 +17,8 @@ if str(BENCHMARKS) not in sys.path:
     sys.path.insert(0, str(BENCHMARKS))
 
 from harness import (  # noqa: E402
-    _SUMMARY, Task, TaskResult, SuiteOutcome, _schedule, _score, load_tasks, run_suite, to_markdown,
+    _SUMMARY, Task, TaskResult, SuiteOutcome, _schedule, _score, benchmark_settings,
+    is_infrastructure_failure, load_tasks, run_suite, to_markdown,
 )
 
 
@@ -237,3 +238,38 @@ def test_uncommitted_edits_are_reported_not_hidden() -> None:
 
     version = harness._code_version()
     assert version["dirty"] in (True, False, None)
+
+
+# --------------------------------------------------------------------------
+# an unreachable server is not a result
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("error", [
+    "EndpointUnavailable: http://host:30000/v1 is unreachable: Server disconnected",
+    "AllEndpointsDown: no endpoint answered",
+])
+def test_infrastructure_failures_are_recognised(error):
+    assert is_infrastructure_failure(error)
+
+
+@pytest.mark.parametrize("error", [
+    "",
+    "Escalation: could not put run 1a2b3c on its own branch",
+    "token budget exhausted (455356/400000)",
+    # The words appear, but as prose inside another failure — the classifier
+    # keys on the exception name, which is the first token before the colon.
+    "Escalation: gave up after EndpointUnavailable: retried three times",
+])
+def test_ordinary_failures_are_left_alone(error):
+    assert not is_infrastructure_failure(error)
+
+
+def test_a_task_nobody_measured_is_not_counted_as_a_clean_sweep(tmp_path):
+    """`passes == n` is true of zero and zero. It must also have run."""
+    results = [TaskResult(task_id="tags", status="failed", score="unusable", error="AllEndpointsDown: x")]
+    report = to_markdown(results, benchmark_settings())
+
+    assert "tasks passing every repetition: **0/1**" in report
+    assert "never ran" in report
+    assert "never reached a model" in report

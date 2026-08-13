@@ -148,6 +148,19 @@ def _run_pytest(workspace: Path, target: str | None = None) -> SuiteOutcome:
     return outcome
 
 
+# A model server that goes away mid-pass is not a result about the crew, and
+# recording it as one is worse than recording nothing. It happened: two of
+# three `tag_validation` repetitions never reached a model, and the report read
+# `1/3 ⚠︎ flaky`, median 135,634 tokens, range 1,713–231,852 — an accusation
+# against the crew, in the same column and the same median as real outcomes.
+INFRASTRUCTURE_ERRORS = ("EndpointUnavailable", "AllEndpointsDown")
+
+
+def is_infrastructure_failure(error: str) -> bool:
+    """Did this run fail because nothing answered, rather than on its merits?"""
+    return error.split(":", 1)[0].strip() in INFRASTRUCTURE_ERRORS
+
+
 def _score(status: str, own: SuiteOutcome, hidden: SuiteOutcome) -> str:
     """What the crew actually delivered, judged separately from how it got there.
 
@@ -261,6 +274,14 @@ async def _run_in(
         error=db.get_run(run_id).get("error", "") or "",
     )
 
+    if is_infrastructure_failure(result.error):
+        # Nothing to judge. The tests would grade whatever half-written state
+        # the disconnection left behind, and that score would be about the
+        # network. `unusable` is excluded from every aggregate rather than
+        # averaged into one.
+        result.score = "unusable"
+        return result
+
     # The suite as the crew left it: catches regressions and weak self-testing.
     result.own_tests = _run_pytest(workspace)
 
@@ -369,6 +390,20 @@ async def _run_sequentially(
             result.repetition = repetition
             _report(step, total, task, repetition, repeat, result)
             results.append(result)
+            if result.score == "unusable":
+                # Stop rather than grind through the rest against a server that
+                # is not there. The pass this rule was written for spent sixteen
+                # hours doing exactly that and produced a table that read like a
+                # finding. A short pass that says why it stopped is worth more
+                # than a complete one that has to be thrown away.
+                print(
+                    f"\nStopped after {step}/{total}: {result.error}\n"
+                    "No model answered, so the remaining runs would measure the "
+                    "outage. Nothing here is comparable — restart the pass once "
+                    "the server is back.",
+                    flush=True,
+                )
+                break
     finally:
         db.close()
     return results
@@ -502,7 +537,9 @@ def to_markdown(results: list[TaskResult], settings: Settings, *, concurrency: i
     provider = settings.effective_provider.value
     aggregates = aggregate(results)
     repeat = max((a.n for a in aggregates), default=1)
-    fully_passing = sum(1 for a in aggregates if a.passes == a.n)
+    # `a.n` is the number of repetitions that actually ran, so `passes == n`
+    # would call a task nobody measured a clean sweep. It has to have run.
+    fully_passing = sum(1 for a in aggregates if a.n > 0 and a.passes == a.n)
 
     lines = [
         "# Benchmark results",
@@ -547,7 +584,11 @@ def to_markdown(results: list[TaskResult], settings: Settings, *, concurrency: i
     ]
     for a in aggregates:
         flag = " ⚠︎ flaky" if a.is_flaky else ""
-        scores = ", ".join(SCORE_MARK.get(s, s) for s in a.scores)
+        if a.unusable:
+            # Said plainly and in the passes column, where it cannot be missed:
+            # this row rests on fewer measurements than the pass asked for.
+            flag += f" ⚠︎ {a.unusable} never ran"
+        scores = ", ".join(SCORE_MARK.get(s, s) for s in a.scores) or "—"
         hidden = f"{a.hidden_passed.render()}/{a.hidden_total}" if a.hidden_total else "—"
         lines.append(
             f"| `{a.task_id}` | {a.passes}/{a.n}{flag} | {scores} | {hidden} | "
@@ -559,6 +600,16 @@ def to_markdown(results: list[TaskResult], settings: Settings, *, concurrency: i
             "",
             "Values are the median, with the observed range in brackets. A task",
             "marked flaky produced different outcomes from identical inputs.",
+        ]
+
+    if any(a.unusable for a in aggregates):
+        lines += [
+            "",
+            "> **Some repetitions never reached a model** and are excluded from",
+            "> every figure above rather than averaged into one — a run that could",
+            "> not call the server measures the network, not the crew. Rows marked",
+            "> `never ran` rest on fewer repetitions than the pass asked for, so",
+            "> treat their ranges as narrower evidence than they look.",
         ]
 
     failures = [r for r in results if r.score != "pass"]

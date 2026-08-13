@@ -64,11 +64,33 @@ class Settings(BaseSettings):
     openai_model: str = ""
     # A second server running a *different* model, given to specific roles.
     # This is the opposite case from the list above: those servers must be
-    # interchangeable, these deliberately are not. A small model is cheap and
-    # fast on mechanical work, so pointing the documenter at one frees the big
-    # model for the phases that need it — whether that trade is worth making
-    # is a benchmark question, not an assumption.
+    # interchangeable, these deliberately are not. The idea is that a small
+    # model is cheap on mechanical work, so pointing the documenter at one
+    # frees the big model for the phases that need it.
     #   OPENAI_ROLE_ENDPOINTS=documenter=http://host:30001/v1|small-model.gguf
+    #
+    # Left empty, because the one pair measured says the idea does not hold —
+    # and says why, which generalises further than the numbers do.
+    # Documenter on Qwen3-VL-8B against the same crew on Qwen3.6-35B-A3B,
+    # three repetitions per task:
+    #
+    #   pagination      +14% tokens, +8% tool calls — WORSE
+    #   the other three                             — indistinguishable
+    #
+    # Nothing improved. Attributing tokens per role in the event log shows the
+    # cause: the documenter phase itself grew, 64k tokens to 154k on
+    # `pagination` — the smaller model needed more turns to produce an artifact
+    # that validates.
+    #
+    # And the premise was wrong before any of that. `A3B` means 3B *active*
+    # parameters per token: the 35B model is a sparse mixture, and the "small"
+    # 8B is dense. The model brought in to relieve the big one is more
+    # expensive per token than the big one, and then asks for more tokens.
+    # Sparse and dense parameter counts are not comparable sizes, so read the
+    # active count, not the name.
+    #
+    # This is a verdict about one pair of models, not about role routing. The
+    # machinery stays: point it at a genuinely cheaper model and measure again.
     openai_role_endpoints: str = ""
     # Qwen3-family reasoning toggle, passed as chat_template_kwargs.
     openai_enable_thinking: bool = True

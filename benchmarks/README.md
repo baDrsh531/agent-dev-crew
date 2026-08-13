@@ -208,6 +208,40 @@ refuse a change that sounded right, and once to accept the same change after
 the refusal turned out to rest on nothing. A single run per task is an
 anecdote; `--repeat 3` is the smallest thing that can disagree with you.
 
+**A cheaper model that was not cheaper.** Roles can be pointed at a second
+server running a different model, on the reasoning that the documenter does
+mechanical work and a small model would do it for less, freeing the big one.
+Measured — documenter on `Qwen3-VL-8B`, the rest of the crew on
+`Qwen3.6-35B-A3B`, three repetitions per task:
+
+| task | tokens | tool calls | verdict |
+|---|---|---|---|
+| `pagination` | 187,565 -> 214,291 (**+14%**) | 25 -> 27 (+8%) | **worse** |
+| `search` | indistinguishable | indistinguishable | — |
+| `tag_validation` | indistinguishable | indistinguishable | — |
+| `jwt_auth` | indistinguishable | indistinguishable | — |
+
+Nothing improved, so it stays off. The interesting part is why, and it took
+two steps to see.
+
+First: the harness counts tokens without asking which model produced them, so
+it cannot see the thing routing is meant to buy. Attributing them per role
+from the event log — the running total rises between `agent.started` and
+`agent.finished`, so that rise belongs to the role holding the window — showed
+the documenter phase itself had grown, on `pagination` from 64k tokens to
+154k. The smaller model needed more turns to produce an artifact that
+validates against its schema.
+
+Second, and the part worth carrying elsewhere: **the premise was wrong before
+any run happened**. `A3B` means three billion *active* parameters per token —
+the 35B model is a sparse mixture of experts, and the "small" 8B is dense.
+The model brought in to relieve the big one costs more compute per token than
+the big one, and then asks for more tokens. A parameter count in a model's
+name is not a cost until you know how much of it runs.
+
+That is a verdict about one pair of models, not about role routing, and the
+machinery stays for a genuinely cheaper one.
+
 **An outage was being reported as a finding about the crew.** Halfway through a
 pass, the model server went away. Two of three `tag_validation` repetitions
 never reached it — one disconnected mid-run, the next could not connect at all
